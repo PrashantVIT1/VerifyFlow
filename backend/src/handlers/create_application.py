@@ -1,25 +1,30 @@
 
 import json
 import uuid
+import os
+import boto3
+import logging
 from datetime import datetime, timezone
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+dynamodb = boto3.resource("dynamodb")
 
 
 def lambda_handler(event, context):
     try:
         body = json.loads(event.get("body") or "{}")
 
-        # Extract applicant details
         full_name = body.get("full_name", "").strip()
         email = body.get("email", "").strip()
         phone = body.get("phone", "").strip()
 
-        # Validate required fields
         if not full_name or not email or not phone:
             return response(400, {
                 "error": "full_name, email and phone are required"
             })
 
-        # Generate unique application ID
         application_id = str(uuid.uuid4())
 
         application = {
@@ -32,6 +37,16 @@ def lambda_handler(event, context):
             "created_at": datetime.now(timezone.utc).isoformat()
         }
 
+        table_name = os.environ["APPLICATIONS_TABLE"]
+        table = dynamodb.Table(table_name)
+
+        table.put_item(Item=application)
+
+        logger.info(
+            "KYC application created: %s",
+            application_id
+        )
+
         return response(201, {
             "message": "KYC application created successfully",
             "application": application
@@ -40,6 +55,12 @@ def lambda_handler(event, context):
     except (json.JSONDecodeError, AttributeError):
         return response(400, {
             "error": "Invalid request body"
+        })
+
+    except Exception:
+        logger.exception("Failed to create KYC application")
+        return response(500, {
+            "error": "Unable to create KYC application"
         })
 
 

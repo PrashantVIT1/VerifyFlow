@@ -26,6 +26,86 @@ Resources:
             Path: /health
             Method: GET
 
+  CreateApplicationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VerifyFlow-CreateApplication
+      CodeUri: backend/src/handlers/
+      Handler: create_application.lambda_handler
+      Role: arn:aws:iam::598085663516:role/VerifyFlowLambdaExecutionRole
+      Description: Creates a PAN KYC application and stores it in DynamoDB
+      Environment:
+        Variables:
+          APPLICATIONS_TABLE: !Ref ApplicationsTable
+      Events:
+        CreateApplicationApi:
+          Type: Api
+          Properties:
+            Path: /applications
+            Method: POST
+
+  ApplicationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: VerifyFlowApplications
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: application_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: application_id
+          KeyType: HASH
+  GenerateUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VerifyFlow-GenerateUploadUrl
+      CodeUri: backend/src/handlers/
+      Handler: generate_upload_url.lambda_handler
+      Role: arn:aws:iam::598085663516:role/VerifyFlowLambdaExecutionRole
+      Description: Generates pre-signed S3 upload URLs for PAN documents
+      Environment:
+        Variables:
+          PAN_DOCUMENTS_BUCKET: !Ref PanDocumentsBucket
+      Events:
+        GenerateUploadUrlApi:
+          Type: Api
+          Properties:
+            Path: /applications/{application_id}/upload-url
+            Method: POST
+
+  ConfirmUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VerifyFlow-ConfirmUpload
+      CodeUri: backend/src/handlers/
+      Handler: confirm_upload.lambda_handler
+      Role: arn:aws:iam::598085663516:role/VerifyFlowLambdaExecutionRole
+      Description: Confirms PAN document upload and updates application status
+      Environment:
+        Variables:
+          PAN_DOCUMENTS_BUCKET: !Ref PanDocumentsBucket
+          APPLICATIONS_TABLE: !Ref ApplicationsTable
+      Events:
+        ConfirmUploadApi:
+          Type: Api
+          Properties:
+            Path: /applications/{application_id}/confirm-upload
+            Method: POST
+
+  PanDocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "verifyflow-pan-documents-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
 Outputs:
   HealthApiUrl:
     Description: VerifyFlow health-check API endpoint
@@ -34,3 +114,19 @@ Outputs:
   HealthLambdaName:
     Description: Health-check Lambda function name
     Value: !Ref HealthCheckFunction
+
+  ApplicationsTableName:
+    Description: VerifyFlow DynamoDB applications table
+    Value: !Ref ApplicationsTable
+
+  CreateApplicationLambdaName:
+    Description: KYC application creation Lambda function name
+    Value: !Ref CreateApplicationFunction
+
+  CreateApplicationApiUrl:
+    Description: KYC application creation API endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/applications"
+
+  PanDocumentsBucketName:
+    Description: S3 bucket for PAN document uploads
+    Value: !Ref PanDocumentsBucket
