@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "verifyflow-dev"
+region = "ap-south-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+s3_bucket = "verifyflow-deploy-artifacts-598085663516"
+s3_prefix = "verifyflow"

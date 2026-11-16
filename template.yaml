@@ -1,0 +1,36 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: VerifyFlow - Serverless KYC Verification Platform
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VerifyFlow-HealthCheck
+      CodeUri: backend/src/handlers/
+      Handler: health.lambda_handler
+      Role: arn:aws:iam::598085663516:role/VerifyFlowLambdaExecutionRole
+      Description: VerifyFlow API health-check endpoint
+      Events:
+        HealthCheckApi:
+          Type: Api
+          Properties:
+            Path: /health
+            Method: GET
+
+Outputs:
+  HealthApiUrl:
+    Description: VerifyFlow health-check API endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/health"
+
+  HealthLambdaName:
+    Description: Health-check Lambda function name
+    Value: !Ref HealthCheckFunction

@@ -23,6 +23,7 @@ frontend/dist/
 
 # AWS SAM
 .aws-sam/
+.aws/
 
 # IDE
 .idea/
